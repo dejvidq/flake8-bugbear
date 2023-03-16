@@ -410,6 +410,7 @@ class BugBearVisitor(ast.NodeVisitor):
 
         self.check_for_b905(node)
         self.check_for_b028(node)
+        self.check_for_b908(node)
         self.generic_visit(node)
 
     def visit_Module(self, node):
@@ -1290,6 +1291,25 @@ class BugBearVisitor(ast.NodeVisitor):
         ):
             self.errors.append(B032(node.lineno, node.col_offset))
 
+    def check_for_b908(self, node):
+        if (
+            hasattr(node, "func")
+            and (
+                (hasattr(node.func, "id") and node.func.id == "defaultdict")
+                or (
+                    hasattr(node.func, "value")
+                    and hasattr(node.func.value, "id")
+                    and node.func.value.id == "collections"
+                    and hasattr(node.func, "attr")
+                    and node.func.attr == "defaultdict"
+                )
+            )
+            and hasattr(node, "args")
+            and len(node.args) == 1
+            and node.args[0].id == "int"
+        ):
+            self.errors.append(B908(node.lineno, node.col_offset))
+
 
 def compose_call_path(node):
     if isinstance(node, ast.Attribute):
@@ -1687,6 +1707,7 @@ B032 = Error(
     )
 )
 
+
 # Warnings disabled by default.
 B901 = Error(
     message=(
@@ -1741,6 +1762,13 @@ B907 = Error(
     )
 )
 
+B908 = Error(
+    message=(
+        "B908 defaultdict(int) tends to leak memory."
+        "Consider replacing it with Counter()"
+    )
+)
+
 B950 = Error(message="B950 line too long ({} > {} characters)")
 
-disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B950"]
+disabled_by_default = ["B901", "B902", "B903", "B904", "B905", "B906", "B908", "B950"]
